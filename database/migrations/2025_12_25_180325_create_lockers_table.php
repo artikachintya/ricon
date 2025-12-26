@@ -6,17 +6,21 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Run the migrations.
+     */
     public function up(): void
     {
         Schema::create('lockers', function (Blueprint $table) {
             $table->id();
-            $table->string('locker_code')->unique();
-            $table->enum('status', ['available', 'occupied', 'maintenance'])->default('available');
-            $table->unsignedBigInteger('active_session_id')->nullable();
+            $table->enum('status', ['available', 'occupied'])->default('available');
             $table->timestamps();
         });
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
         Schema::dropIfExists('lockers');

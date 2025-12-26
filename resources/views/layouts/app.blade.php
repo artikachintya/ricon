@@ -11,6 +11,19 @@
     {{-- Bootstrap Icons (UNTUK 🔔) --}}
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 
+      <!--begin::Required Plugin(AdminLTE)-->
+    <link rel="stylesheet" href="{{ asset('dashboard-assets/css/adminlte.css') }}">
+    <!--end::Required Plugin(AdminLTE)-->
+
+    <!--begin::Third Party Plugin(OverlayScrollbars)-->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.10.1/styles/overlayscrollbars.min.css"
+      integrity="sha256-tZHrRjVqNSRyWg2wbppGnT833E/Ys0DHWGwT04GiqQg="
+      crossorigin="anonymous"
+    />
+    <!--end::Third Party Plugin(OverlayScrollbars)-->
+
     {{-- Custom CSS --}}
     <style>
         body {
@@ -56,5 +69,8 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+@stack('styles')
 </body>
+
+@stack('scripts')
 </html>

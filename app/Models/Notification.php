@@ -6,22 +6,25 @@ use Illuminate\Database\Eloquent\Model;
 
 class Notification extends Model
 {
-    protected $fillable = [
+     protected $fillable = [
         'user_id',
         'locker_item_id',
         'title',
         'is_read',
     ];
 
-    public function user()
-    {
-        return $this->belongsTo(User::class);
-    }
+     protected $casts = [
+        'is_read' => 'boolean',
+    ];
 
     public function lockerItem()
     {
         return $this->belongsTo(LockerItem::class);
     }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
 }
-
-

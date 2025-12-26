@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
@@ -6,23 +7,23 @@ use Illuminate\Database\Eloquent\Model;
 class LockerItem extends Model
 {
     protected $fillable = [
-        'session_id', 'item_code', 'added_by',
-        'added_at', 'photo_in',
+        'locker_id',
+        'item_name',
+        'item_detail',
+        'added_at',
+    ];
+
+    protected $casts = [
+        'added_at' => 'datetime',
     ];
 
     public function session()
     {
-        return $this->belongsTo(LockerSession::class, 'session_id');
-    }
-
-    public function courier()
-    {
-        return $this->belongsTo(User::class, 'added_by');
+        return $this->belongsTo(LockerSession::class, 'locker_id');
     }
 
     public function notifications()
     {
         return $this->hasMany(Notification::class);
     }
-
 }

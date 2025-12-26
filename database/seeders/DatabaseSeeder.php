@@ -40,6 +40,13 @@ class DatabaseSeeder extends Seeder
         foreach ($users as $u) {
             \App\Models\User::create($u);
         }
+       $this->call([
+            UserSeeder::class,
+            LockerSeeder::class,
+            LockerSessionSeeder::class,
+            LockerItemSeeder::class,
+            NotificationSeeder::class,
+        ]);
     }
 
 

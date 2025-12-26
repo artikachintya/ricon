@@ -4,15 +4,18 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
-    public function up(): void {
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
         Schema::create('notifications', function (Blueprint $table) {
             $table->id();
-
             $table->foreignId('user_id')
                   ->constrained()
                   ->cascadeOnDelete();
-
             $table->foreignId('locker_item_id')
                 ->nullable()
                   ->constrained('locker_items')
@@ -20,13 +23,15 @@ return new class extends Migration {
 
             $table->string('title');
             $table->boolean('is_read')->default(false);
-
             $table->timestamps();
         });
     }
 
-    public function down(): void {
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
         Schema::dropIfExists('notifications');
     }
 };
-

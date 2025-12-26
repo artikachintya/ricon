@@ -20,7 +20,7 @@
                     <a class="nav-link fw-semibold active" href="#">Dashboard</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link text-secondary" href="#">History</a>
+                    <a class="nav-link text-secondary" href="{{ route('history.index') }}">History</a>
                 </li>
             </ul>
 
