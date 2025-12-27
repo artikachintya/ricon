@@ -33,7 +33,7 @@ class LockerSession extends Model
 
     public function assignedTaker()
     {
-        return $this->belongsTo(Taker::class, 'assigned_taker_id');
+        return $this->belongsTo(User::class, 'assigned_taker_id');
     }
 
     public function items()

@@ -5,33 +5,25 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Tymon\JWTAuth\Contracts\JWTSubject;
 
-class User extends Authenticatable implements JWTSubject
+class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
+    // Kolom yang bisa diisi massal
     protected $fillable = [
         'name',
         'udomain',
         'password',
-        'face_embedding', // Essential for the enrollment script
+        'face_embedding', // Tetap dipakai kalau fitur enrollment wajah
     ];
 
+    // Kolom yang disembunyikan saat serialisasi (misal JSON)
     protected $hidden = [
         'password',
     ];
 
-    public function getJWTIdentifier()
-    {
-        return $this->getKey();
-    }
-
-    public function getJWTCustomClaims()
-    {
-        return [];
-    }
-
+    // RELATIONS
     public function lockerSessions()
     {
         return $this->hasMany(LockerSession::class);
@@ -52,6 +44,7 @@ class User extends Authenticatable implements JWTSubject
         return $this->hasMany(Notification::class);
     }
 
+    // ROLE CHECKS
     public function isUser()
     {
         return $this->role === 'user';
