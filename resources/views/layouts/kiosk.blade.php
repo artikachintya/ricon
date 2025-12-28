@@ -63,11 +63,13 @@
             box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
         }
 
-        video#webcam, canvas#captureCanvas {
+        video#webcam,
+        canvas#captureCanvas {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transform: scaleX(-1); /* Mirror effect */
+            transform: scaleX(-1);
+            /* Mirror effect */
         }
 
         #status {
@@ -139,13 +141,27 @@
         }
 
         @keyframes scanMove {
-            0%, 100% { top: 0%; }
-            50% { top: 100%; }
+
+            0%,
+            100% {
+                top: 0%;
+            }
+
+            50% {
+                top: 100%;
+            }
         }
 
         @keyframes slideUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         /* Initial state for canvas */
@@ -204,8 +220,12 @@
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: {
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 },
+                        width: {
+                            ideal: 1280
+                        },
+                        height: {
+                            ideal: 720
+                        },
                         facingMode: "user"
                     }
                 });
@@ -248,12 +268,12 @@
                             const res = data[0];
 
                             if (res.type === "qr_success") {
-                                handleSuccess(`QR Verified: Unit #${res.locker_id}`, [res.locker_id], "QR Code Accepted");
+                                handleSuccess(`QR Verified: Unit #${res.locker_id}`, [res.locker_id],
+                                    "QR Code Accepted");
                             } else if (res.type === "qr_error") {
                                 status.innerText = res.result;
                                 status.style.color = "#dc3545";
-                            }
-                            else if (res.result !== 'STRANGER' && res.user_id) {
+                            } else if (res.result !== 'STRANGER' && res.user_id) {
                                 status.innerText = `Identity Verified: ${res.result}`;
                                 status.style.color = "#28a745";
                                 fetchActiveLockers(res.user_id, res.result);
@@ -293,18 +313,42 @@
             }
         }
 
+        // Sends the list of locker IDs to the local hardware bridge
+        async function sendToLockerController(lockerIds) {
+            try {
+                console.log("Sending command to unlock:", lockerIds);
+                const response = await fetch('http://localhost:2200/api/send', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        lockers: lockerIds
+                    })
+                });
+
+                if (!response.ok) throw new Error('Hardware controller unreachable');
+                console.log("Unlock signal sent successfully");
+            } catch (err) {
+                console.error("Hardware Error:", err);
+                // Optional: Update status to show hardware error
+                status.innerText += " (Hardware Error)";
+                status.style.color = "#dc3545";
+            }
+        }
+
         /**
          * UI Handler for successful access: Stops camera, freezes frame, shows countdown
          */
-        function handleSuccess(statusText, lockerIds, welcomeText) {
+        async function handleSuccess(statusText, lockerIds, welcomeText) {
             isProcessingSuccess = true;
 
             // 1. Freeze the last frame
             const ctx = canvas.getContext('2d');
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            video.style.display = 'none';      // Hide live video
-            canvas.style.display = 'block';    // Show frozen canvas
-            scanLine.style.display = 'none';   // Stop scan animation
+            video.style.display = 'none';
+            canvas.style.display = 'block';
+            scanLine.style.display = 'none';
 
             // 2. Stop the camera hardware
             if (video.srcObject) {
@@ -321,11 +365,14 @@
 
             if (lockerIds.length > 0) {
                 lockerList.innerHTML = lockerIds.map(id => `
-                    <div class="locker-card">
-                        <span class="locker-label">Unit</span>
-                        #${id}
-                    </div>
-                `).join('');
+            <div class="locker-card">
+                <span class="locker-label">Unit</span>
+                #${id}
+            </div>
+        `).join('');
+
+                // --- NEW: Send to Local Locker Hardware Controller ---
+                sendToLockerController(lockerIds);
             } else {
                 lockerList.innerHTML = '';
             }
