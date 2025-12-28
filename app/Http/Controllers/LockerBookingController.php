@@ -196,7 +196,6 @@ class LockerBookingController extends Controller
             'user_id' => 'required|exists:users,id',
         ]);
 
-        // contoh: simpan ke kolom assigned_taker_id
         $booking->assigned_taker_id = $request->user_id;
         $booking->save();
 
@@ -207,7 +206,6 @@ class LockerBookingController extends Controller
 
     public function releaseLocker(LockerSession $booking)
     {
-        // Pastikan yang melepas adalah pemilik booking
         if ($booking->user_id !== Auth::id()) {
             abort(403);
         }
