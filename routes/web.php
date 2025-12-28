@@ -49,8 +49,11 @@ Route::get('/kiosk', function () {
 })->name('kiosk.scan');
 
 Route::get('/users/{user}/active-lockers', function ($userId) {
-    return LockerSession::where('user_id', $userId)
-        ->where('status', 'active')
+    return LockerSession::where('status', 'active')
+        ->where(function ($query) use ($userId) {
+            $query->where('user_id', $userId)
+                  ->orWhere('assigned_taker_id', $userId);
+        })
         ->get(['locker_id']);
 });
 
