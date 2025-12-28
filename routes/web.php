@@ -49,12 +49,18 @@ Route::get('/kiosk', function () {
     return view('layouts.kiosk');
 })->name('kiosk.scan');
 
-Route::get('/users/{user}/active-lockers', function ($userId) {
-    return LockerSession::where('user_id', $userId)
-        ->where('status', 'active')
+
+Route::get('/users/{userId}/active-lockers', function ($userId) {
+    return LockerSession::where('status', 'active')
+        ->where(function ($query) use ($userId) {
+            $query->where('user_id', $userId)
+                  ->orWhere('assigned_taker_id', $userId);
+        })
         ->get(['locker_id']);
 });
 
 // HISTORY (SESSION-BASED)
 Route::resource('/history', HistoryController::class)
     ->middleware('auth');
+
+Route::post('/verify-qr', [LockerBookingController::class, 'verifyQrCode'])->name('qr.verify');

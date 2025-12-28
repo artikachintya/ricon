@@ -79,12 +79,28 @@
                             <h5 class="modal-title">QR Access Key</h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                         </div>
-                        <div class="modal-body p-4">
+                        {{-- <div class="modal-body p-4">
                             <div class="bg-white p-3 border d-inline-block shadow-sm" style="border-radius: 12px;">
                                 <img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={{ $item->key }}" alt="QR Code">
                             </div>
                             <h5 class="mt-3 fw-bold text-primary">{{ $item->key }}</h5>
                             <p class="text-muted">Gunakan QR ini untuk membuka loker.</p>
+                        </div> --}}
+
+                        <div class="modal-body p-4">
+                            <div class="bg-white p-3 border d-inline-block shadow-sm" style="border-radius: 12px;">
+                                {{-- MENGAMBIL PATH DARI DB --}}
+                                @if($item->qr_path)
+                                    <img src="{{ asset($item->qr_path) }}" alt="QR Code" width="250">
+                                    <div class="mt-3">
+                                        <a href="{{ asset($item->qr_path) }}" download="qr_{{ $item->item_detail ?? $item->item_name }}.png" class="btn btn-outline-success btn-sm">
+                                            <i class="bi bi-download"></i> Download QR
+                                        </a>
+                                    </div>
+                                @else
+                                    <p class="text-danger">Gambar QR tidak ditemukan.</p>
+                                @endif
+                            </div>
                         </div>
                     </div>
                 </div>

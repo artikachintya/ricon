@@ -79,46 +79,110 @@ class LockerBookingController extends Controller
 
 
         //gres test
+        // $request->validate([
+        //     'locker_id' => 'required|exists:lockers,id',
+        //     'item_name' => 'required|string',
+        // ]);
+
+        // $session = DB::transaction(function () use ($request) {
+
+        //     // Lock locker
+        //     $locker = Locker::where('id', $request->locker_id)
+        //         ->where('status', 'available')
+        //         ->lockForUpdate()
+        //         ->firstOrFail();
+
+        //     // Create session
+        //     $session = LockerSession::create([
+        //         'locker_id' => $locker->id,
+        //         'user_id'   => Auth::id(),
+        //         'status'    => 'active',
+        //     ]);
+
+        //     // CREATE ITEM PERTAMA + QR
+        //     LockerItem::create([
+        //         'locker_session_id' => $session->id,
+        //         'item_name'         => $request->item_name,
+        //         'item_detail'       => $request->item_detail,
+        //         'key'               => Str::uuid()->toString(),
+        //     ]);
+
+        //     // Update locker
+        //     $locker->update([
+        //         'status' => 'occupied',
+        //     ]);
+
+        //     return $session;
+        // });
+
+        // return redirect()
+        //     ->route('booking.show', $session->id)
+        //     ->with('show_qr', true);
+
+
+
         $request->validate([
             'locker_id' => 'required|exists:lockers,id',
             'item_name' => 'required|string',
         ]);
 
-        $session = DB::transaction(function () use ($request) {
-
-            // Lock locker
+        return DB::transaction(function () use ($request) {
+            // Cari loker yang tersedia
             $locker = Locker::where('id', $request->locker_id)
                 ->where('status', 'available')
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            // Create session
+            // Buat Session
             $session = LockerSession::create([
                 'locker_id' => $locker->id,
                 'user_id'   => Auth::id(),
                 'status'    => 'active',
             ]);
 
-            // CREATE ITEM PERTAMA + QR
-            LockerItem::create([
+            // Buat Item
+            $item = LockerItem::create([
                 'locker_session_id' => $session->id,
                 'item_name'         => $request->item_name,
                 'item_detail'       => $request->item_detail,
                 'key'               => Str::uuid()->toString(),
             ]);
 
-            // Update locker
+            // Panggil Flask API untuk generate QR secara fisik
+            try {
+                $response = Http::post('http://127.0.0.1:5000/generate-qr', [
+                    'locker_session_id' => $session->id,
+                    'item_id'           => $item->id,
+                    'item_detail'       => $item->item_detail ?? $item->item_name,
+                    'key'               => $item->key
+                ]);
+
+                if ($response->successful()) {
+                    $data = $response->json();
+
+                    // Simpan path gambar ke tabel locker_items
+                    if (isset($data['relative_path'])) {
+                        $item->update([
+                            'qr_path' => $data['relative_path']
+                        ]);
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::error("Flask Error saat generate QR: " . $e->getMessage());
+            }
+
+            // Update status loker menjadi terisi
             $locker->update([
                 'status' => 'occupied',
             ]);
 
-            return $session;
+            return redirect()
+                ->route('booking.show', $session->id)
+                ->with('show_qr', true);
         });
-
-        return redirect()
-            ->route('booking.show', $session->id)
-            ->with('show_qr', true);
     }
+
+
 
     /**
      * Display the specified resource.
@@ -158,22 +222,49 @@ class LockerBookingController extends Controller
         // ->route('dashboard')
         // ->with('success', 'Item berhasil ditambahkan');
 
-        // gres test (Logika update baru dengan UUID)
+        // gres test
+        // Validasi input
         $request->validate([
             'item_name' => 'required|string',
         ]);
 
-        LockerItem::create([
-            'locker_session_id' => $id,
-            'item_name'         => $request->item_name,
-            'item_detail'       => $request->item_detail,
-            'key'               => Str::uuid()->toString(),
-        ]);
+        return DB::transaction(function () use ($request, $id) {
+            // Buat Item baru
+            $item = LockerItem::create([
+                'locker_session_id' => $id,
+                'item_name'         => $request->item_name,
+                'item_detail'       => $request->item_detail,
+                'key'               => Str::uuid()->toString(),
+            ]);
 
-        return redirect()
-            ->route('booking.show', $id)
-            ->with('success', 'Item berhasil ditambahkan')
-            ->with('show_qr', true);
+            // PANGGIL FLASK UNTUK GENERATE QR ITEM BARU INI
+            try {
+                $response = Http::post('http://127.0.0.1:5000/generate-qr', [
+                    'locker_session_id' => $id, // <--- Mengirim ID Session yang sama dengan booking pertama
+                    'item_id'           => $item->id,
+                    'item_detail'       => $item->item_detail ?? $item->item_name,
+                    'key'               => $item->key
+                ]);
+
+                if ($response->successful()) {
+                    $data = $response->json();
+
+                    // Simpan path ke database locker_items
+                    if (isset($data['relative_path'])) {
+                        $item->update([
+                            'qr_path' => $data['relative_path']
+                        ]);
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::error("Flask Error saat Add Item: " . $e->getMessage());
+            }
+
+            return redirect()
+                ->route('booking.show', $id)
+                ->with('success', 'Item berhasil ditambahkan')
+                ->with('show_qr', true);
+        });
     }
 
     /**
@@ -227,5 +318,55 @@ class LockerBookingController extends Controller
         return redirect()
             ->route('dashboard')
             ->with('success', 'Loker berhasil dilepaskan. Anda dapat memesan loker kembali.');
+    }
+
+    public function verifyQrCode(Request $request)
+    {
+        // 1. Forward the image to the Python AI Server for decoding only
+        try {
+            $response = Http::attach(
+                'images',
+                file_get_contents($request->file('images')),
+                'frame.jpg'
+            )->post('http://localhost:5000/recognize');
+
+            if (!$response->successful()) {
+                return response()->json(['error' => 'AI Server Error'], 500);
+            }
+
+            $data = $response->json();
+
+            // Check if Python returned a raw QR key
+            if (isset($data[0]['type']) && $data[0]['type'] === 'qr_raw') {
+                $qrKey = $data[0]['key'];
+
+                // 2. Perform Database Logic in Laravel
+                $item = LockerItem::where('key', $qrKey)
+                    ->with('session') // Get the session to find locker_id
+                    ->first();
+
+                if (!$item) {
+                    return response()->json([['type' => 'qr_error', 'result' => 'QR Key Tidak Valid']]);
+                }
+
+                // Check if already opened (1 = Fresh/Unopened, 0 = Used)
+                if ($item->opened_by_sender == 0) {
+                    return response()->json([['type' => 'qr_error', 'result' => 'Loker ini sudah pernah dibuka']]);
+                }
+
+                // 3. Success: Update status and return the locker_id
+                $item->update(['opened_by_sender' => 0]);
+
+                return response()->json([[
+                    'type' => 'qr_success',
+                    'locker_id' => $item->session->locker_id
+                ]]);
+            }
+
+            // If it wasn't a QR, return the original data (for face recognition fallback)
+            return response()->json($data);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Connection to AI Server failed'], 500);
+        }
     }
 }

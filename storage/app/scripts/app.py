@@ -35,20 +35,53 @@ QR_STORAGE_PATH = os.path.join(os.getcwd(), "public", "qrcodes")
 if not os.path.exists(QR_STORAGE_PATH):
     os.makedirs(QR_STORAGE_PATH)
 
-@app.route('/generate', methods=['GET'])
-def generate_qr():
-    random_key = str(uuid.uuid4())[:8]
-    filename = f"qr_{random_key}.png"
-    filepath = os.path.join(QR_STORAGE_PATH, filename)
+# @app.route('/generate', methods=['GET'])
+# def generate_qr():
+#     random_key = str(uuid.uuid4())[:8]
+#     filename = f"qr_{random_key}.png"
+#     filepath = os.path.join(QR_STORAGE_PATH, filename)
 
-    img = qrcode.make(random_key)
-    img.save(filepath)
+#     img = qrcode.make(random_key)
+#     img.save(filepath)
+
+#     return jsonify({
+#         "status": "success",
+#         "key": random_key,
+#         "qr_path": f"qrcodes/{filename}"
+#     })
+
+# gres test
+@app.route('/generate-qr', methods=['POST'])
+def generate_qr():
+    data = request.json
+
+    # Pastikan mengambil locker_session_id
+    ls_id = str(data.get('locker_session_id'))
+    item_detail = str(data.get('item_detail') or "barang").replace(" ", "_")
+    key_data = data.get('key')
+
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../"))
+
+    # Nama folder tetap locker_{id_session}
+    folder_name = f"locker_{ls_id}"
+    target_folder = os.path.join(project_root, "public", "images", "qr", folder_name)
+
+
+    os.makedirs(target_folder, exist_ok=True)
+
+    # Nama file unik per item detail
+    file_name = f"qr_{item_detail}.png"
+    file_path = os.path.join(target_folder, file_name)
+
+    img = qrcode.make(key_data)
+    img.save(file_path)
 
     return jsonify({
         "status": "success",
-        "key": random_key,
-        "qr_path": f"qrcodes/{filename}"
+        "relative_path": f"images/qr/{folder_name}/{file_name}"
     })
+
+
 
 @app.route('/recognize', methods=['POST'])
 def recognize():
@@ -62,22 +95,10 @@ def recognize():
     cursor = conn.cursor(dictionary=True)
 
     try:
-        # STEP A: QR DETECTION
+        # STEP A: ONLY DECODE QR
         qr_data, points, _ = qr_detector.detectAndDecode(img)
         if qr_data:
-            cursor.execute("SELECT id, locker_id, opened_by_sender FROM locker_items WHERE `key` = %s", (qr_data,))
-            item = cursor.fetchone()
-
-            if item:
-                # FIX: If 0 means "Available/Not Opened", we allow the open and set to 1
-                if item['opened_by_sender'] == 1:
-                    return jsonify([{"type": "qr_error", "result": "Loker ini sudah pernah dibuka oleh pengirim"}])
-
-                cursor.execute("UPDATE locker_items SET opened_by_sender = 1 WHERE id = %s", (item['id'],))
-                conn.commit()
-                return jsonify([{"type": "qr_success", "result": "QR Verified", "locker_id": item['locker_id']}])
-
-            return jsonify([{"type": "qr_error", "result": "QR Key Tidak Valid"}])
+            return jsonify([{"type": "qr_raw", "key": qr_data}])
 
         # STEP B: FACE RECOGNITION FALLBACK
         # Threshold adjusted to 0.45 for better security on buffalo_l

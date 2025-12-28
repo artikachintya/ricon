@@ -12,6 +12,7 @@ class LockerSession extends Model
         'assigned_taker_id',
         'taken_by',
         'status',
+        'qr_path',
         'taken_at',
         'ended_at',
     ];
