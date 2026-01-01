@@ -2,10 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Http\Request;
+use Illuminate\Http\Client\Response;
+use Illuminate\Support\Facades\Http;
 use App\Models\LockerItem;
 use App\Models\LockerSession;
 use App\Models\Notification;
 use Illuminate\Support\Facades\Auth;
+use App\Models\User;
+use Illuminate\Support\Facades\Log;
 
 class NotificationController extends Controller
 {
@@ -63,6 +68,27 @@ class NotificationController extends Controller
         ]);
     }
 
+    public static function sendWhatsApp(string $phone, string $message)
+    {
+        if ($phone == "null") {
+            return;
+        }
+
+        // Pastikan nomor HP diawali +62
+        if (str_starts_with($phone, '0')) {
+            $phone = '+62' . substr($phone, 1);
+        }
+
+        try {
+            Http::timeout(20)->post('http://localhost:5000/send-whatsapp', [
+                'phone' => $phone,
+                'message' => $message
+            ]);
+        } catch (\Exception $e) {
+            Log::error("WhatsApp API Error: " . $e->getMessage());
+        }
+    }
+
     // =============== BARANG DIAMBIL ===============
     public function itemTakenNotificationOnly(LockerSession $session)
     {
@@ -70,6 +96,8 @@ class NotificationController extends Controller
             return response()->json(['message' => 'Session not found'], 404);
         }
 
+        // Ambil data user terkait
+        $user = $session->user; 
         $takenByName = optional($session->assignedTaker)->name ?? 'Unknown';
         $itemNames = $session->items?->pluck('item_name')->implode(', ') ?? 'Barang';
         $lockerCode = optional($session->locker)->id ?? 'Unknown';
@@ -86,8 +114,11 @@ class NotificationController extends Controller
             'is_read' => false,
         ]);
 
+        $phone = $user->phone ?? "null"; 
+        self::sendWhatsApp($phone, "Barang ({$itemNames}) telah diambil oleh {$takenByName}.");
+
         return response()->json([
-            'message' => 'Taken notification sent'
+            'message' => 'Notification and WhatsApp processed'
         ]);
     }
 
@@ -100,6 +131,12 @@ class NotificationController extends Controller
         if ((int)$item->opened_by_sender !== 0) {
             return null; 
         }
+        
+        // Ambil user dari session
+        $user = $item->session->user;
+        
+        // Panggil static method
+        self::sendWhatsApp($user->phone ?? "null", "Barang '{$item->item_name}' telah masuk ke loker.");
 
         return Notification::create([
             'user_id' => $item->session->user_id,

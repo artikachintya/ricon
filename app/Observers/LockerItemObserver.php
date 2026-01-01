@@ -40,6 +40,7 @@ class LockerItemObserver
     {
         $item->load('session');
         $userId = optional($item->session)->user_id;
+        $user = optional($item->session)->user;
 
         if (
             (int)$item->opened_by_sender === 0
@@ -58,6 +59,8 @@ class LockerItemObserver
                 ],
                 'is_read' => false
             ]);
+            $waMessage = "Halo {$user->name}, barang '{$item->item_name}' telah berhasil dimasukkan ke loker. Simpan notifikasi ini sebagai bukti.";
+            \App\Http\Controllers\NotificationController::sendWhatsApp($user->phone ?? "null", $waMessage);
         }
     }
 

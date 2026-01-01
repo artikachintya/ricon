@@ -15,6 +15,7 @@ class User extends Authenticatable
         'name',
         'udomain',
         'password',
+        'phone',
         'face_embedding', // Tetap dipakai kalau fitur enrollment wajah
     ];
 

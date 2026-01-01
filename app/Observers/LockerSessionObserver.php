@@ -12,6 +12,7 @@ class LockerSessionObserver
      */
     public function created(LockerSession $session)
     {
+        $session->load('user', 'locker');
         // Trigger notif ketika session baru dibuat (booking)
         Notification::create([
             'user_id' => $session->user_id,
@@ -19,6 +20,10 @@ class LockerSessionObserver
             'title' => "Locker {$session->locker?->id} berhasil dibooking!",
             'is_read' => false,
         ]);
+        if ($session->user && $session->user->phone) {
+            $msg = "Booking Berhasil! Anda menggunakan locker " . ($session->locker->locker_code ?? $session->locker_id);
+            \App\Http\Controllers\NotificationController::sendWhatsApp($session->user->phone, $msg);
+        }
     }
 
     /**
@@ -26,6 +31,8 @@ class LockerSessionObserver
      */
     public function updated(LockerSession $session)
     {
+        $session->load('user', 'locker', 'assignedTaker');
+
         if ($session->wasChanged('ended_at') && $session->ended_at) {
             Notification::create([
                 'user_id' => $session->user_id,
@@ -35,6 +42,8 @@ class LockerSessionObserver
 
         // SESSION EXPIRED (waktu habis)
         if ($session->wasChanged('status') && $session->status === 'expired') {
+            $user = $session->user;
+            $takerName = $session->assignedTaker->name ?? 'Unknown';
             $lockerCode = optional($session->locker)->id ?? 'Unknown';
 
             Notification::create([
@@ -43,6 +52,10 @@ class LockerSessionObserver
                 'type'    => 'session_expired',
                 'is_read' => false,
             ]);
+            if ($user && $user->phone) {
+                $msg = "NOTIFIKASI: Barang Anda di loker telah diambil oleh {$takerName}.";
+                \App\Http\Controllers\NotificationController::sendWhatsApp($user->phone, $msg);
+            }
         }
 
         // SESSION DONE / RELEASE MANUAL
@@ -55,6 +68,11 @@ class LockerSessionObserver
                 'type'    => 'session_done',
                 'is_read' => false,
             ]);
+
+            if ($user && $user->phone) {
+                $msg = "PERINGATAN: Booking locker {$lockerCode} Anda telah expired.";
+                \App\Http\Controllers\NotificationController::sendWhatsApp($user->phone, $msg);
+            }
         }
 
 
