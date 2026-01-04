@@ -26,17 +26,12 @@ db_config = {
 }
 
 # --- 2. INITIALIZE MODELS ---
-# Optimized for RTX 3050
 app_model = FaceAnalysis(name='buffalo_l', providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
 app_model.prepare(ctx_id=0, det_size=(640, 640))
 qr_detector = cv2.QRCodeDetector()
 
 def get_db_connection():
     return mysql.connector.connect(**db_config)
-
-QR_STORAGE_PATH = os.path.join(os.getcwd(), "public", "qrcodes")
-if not os.path.exists(QR_STORAGE_PATH):
-    os.makedirs(QR_STORAGE_PATH)
 
 @app.route('/generate-qr', methods=['POST'])
 def generate_qr():

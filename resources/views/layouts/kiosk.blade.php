@@ -226,7 +226,6 @@
             if (isProcessingSuccess) return;
 
             const ctx = canvas.getContext('2d');
-            // Set canvas size to match video aspect ratio for the freeze frame
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -241,7 +240,6 @@
                         method: 'POST',
                         body: formData,
                         headers: {
-                            // Laravel requires a CSRF token for POST requests
                             'X-CSRF-TOKEN': '{{ csrf_token() }}'
                         }
                     });
@@ -250,29 +248,39 @@
                         const data = await response.json();
                         if (data.length > 0) {
                             const res = data[0];
-                            console.log("AI Response:", {
-                                data
-                            })
-                            if (res.type === "qr_success" && res.type === "face") {
-                                handleSuccess(`QR Verified: Unit #${res.locker_id}`, [res.locker_id],
-                                    "QR Code Accepted", res.user_id);
-                            } else if (res.type === "qr_error") {
+
+                            // 1. QR PATH: We already have the Locker ID, so we go straight to UI
+                            if (res.type === "qr_success") {
+                                handleSuccess(
+                                    `QR Verified: Unit #${res.locker_id}`,
+                                    [res.locker_id],
+                                    "QR Code Accepted",
+                                    res.user_id,
+                                    "qr"
+                                );
+                            }
+                            // 2. FACE PATH: We only know the person. Fetch lockers FIRST, then update UI.
+                            else if (res.result !== 'STRANGER' && res.user_id) {
+                                status.innerText = "Identity Verified. Fetching lockers...";
+                                status.style.color = "#28a745";
+
+                                // We do NOT call handleSuccess here anymore.
+                                // We wait for the data in fetchActiveLockers.
+                                fetchActiveLockers(res.user_id, res.result);
+                            }
+                            // 3. ERROR STATES
+                            else if (res.type === "qr_used" || res.type === "qr_error") {
                                 status.innerText = res.result;
                                 status.style.color = "#dc3545";
-                            } else if (res.result !== 'STRANGER' && res.user_id) {
-                                status.innerText = `Identity Verified: ${
-                                res.result}`;
-                                status.style.color = "#28a745";
-                                fetchActiveLockers(res.user_id, res.result);
-                            } else {
-                                status.innerText = "Scanning for Face or QR...";
-                                status.style.color = "#666";
+                                if (res.type === "qr_used") {
+                                    isProcessingSuccess = true;
+                                    startRefreshCountdown();
+                                }
                             }
                         }
                     }
                 } catch (e) {
-                    status.innerText = "AI Server Offline - Reconnecting...";
-                    status.style.color = "#666";
+                    status.innerText = "AI Server Offline...";
                 }
 
                 if (!isProcessingSuccess) {
@@ -288,22 +296,29 @@
             try {
                 const response = await fetch(`/users/${userId}/active-lockers`);
                 const lockers = await response.json();
+                const lockerIds = lockers.map(l => l.locker_id);
 
-                if (lockers.length > 0) {
-                    const lockerIds = lockers.map(l => l.locker_id);
-                    if (name && name !== "STRANGER") {
-                        // FACE SUCCESS
-                        handleSuccess(`Welcome back, ${name}`, lockerIds, `Your active units are ready:`, userId);
-                    } else {
-                        // QR SUCCESS
-                        handleSuccess('QR Verified: Unit', lockerIds, "QR Code Accepted", userId);
-                    }
-
+                // Now that we have the name AND the locker IDs, call UI update ONCE.
+                if (lockerIds.length > 0) {
+                    handleSuccess(
+                        `Welcome back, ${name}`,
+                        lockerIds,
+                        `Your active units are ready:`,
+                        userId,
+                        "face"
+                    );
                 } else {
-                    handleSuccess(`Welcome, ${name}`, [], `You have no active lockers.`);
+                    handleSuccess(
+                        `Welcome, ${name}`,
+                        [],
+                        `You have no active lockers.`,
+                        userId,
+                        "face"
+                    );
                 }
             } catch (err) {
                 console.error("Locker Fetch Error:", err);
+                status.innerText = "Error retrieving locker data.";
             }
         }
 
@@ -325,7 +340,6 @@
                 console.log("Unlock signal sent successfully");
             } catch (err) {
                 console.error("Hardware Error:", err);
-                // Optional: Update status to show hardware error
                 status.innerText += " (Hardware Error)";
                 status.style.color = "#dc3545";
             }
@@ -352,7 +366,7 @@
         /**
          * UI Handler for successful access: Stops camera, freezes frame, shows countdown
          */
-        async function handleSuccess(statusText, lockerIds, welcomeText, userId) {
+        async function handleSuccess(statusText, lockerIds, welcomeText, userId, successType) {
             isProcessingSuccess = true;
 
             // 1. Freeze the last frame
@@ -385,8 +399,8 @@
 
                 // --- NEW: Send to Local Locker Hardware Controller ---
                 sendToLockerController(lockerIds);
-                if (userId) {
-                    updateLockerStatusInDB(lockerIds, userId);
+                if (userId && successType == 'face') {
+                    updateLockerStatusInDB(lockerIds, userId, );
                 }
             } else {
                 lockerList.innerHTML = '';
