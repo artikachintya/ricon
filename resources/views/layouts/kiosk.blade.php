@@ -311,7 +311,7 @@
                     handleSuccess(
                         `Welcome, ${name}`,
                         [],
-                        `You have no active lockers.`,
+                        `No locker have been assigned to you.`,
                         userId,
                         "face"
                     );
@@ -322,11 +322,11 @@
             }
         }
 
-         // Sends the list of locker IDs to the local hardware bridge
+        // Sends the list of locker IDs to the local hardware bridge
         async function sendToLockerController(lockerIds) {
             try {
                 for (const lockerId of lockerIds) {
-                    const message = 0123_${lockerId};
+                    const message = `0123_${lockerId}`;
 
                     console.log("Sending command:", message);
 

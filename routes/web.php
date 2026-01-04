@@ -58,8 +58,7 @@ Route::get('/kiosk', function () {
 Route::get('/users/{userId}/active-lockers', function ($userId) {
     return LockerSession::where('status', 'active')
         ->where(function ($query) use ($userId) {
-            $query->where('user_id', $userId)
-                ->orWhere('assigned_taker_id', $userId);
+            $query->Where('assigned_taker_id', $userId);
         })
         ->get(['locker_id']);
 });
@@ -80,8 +79,7 @@ Route::post('/lockers/update-statuses', function (\Illuminate\Http\Request $requ
         ->whereIn('locker_id', $lockerIds)        // harus locker yang discan
         ->whereNotNull('assigned_taker_id')        // harus sudah ada assigned taker ⚠️
         ->where(function ($query) use ($userId) {
-            $query->where('user_id', $userId)
-                ->orWhere('assigned_taker_id', $userId);
+            $query->where('assigned_taker_id', $userId);
         })
         ->get()
         ->each(function ($session) {

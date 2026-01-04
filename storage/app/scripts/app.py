@@ -26,6 +26,7 @@ db_config = {
 }
 
 # --- 2. INITIALIZE MODELS ---
+# Optimized for RTX 3050
 app_model = FaceAnalysis(name='buffalo_l', providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
 app_model.prepare(ctx_id=0, det_size=(640, 640))
 qr_detector = cv2.QRCodeDetector()
@@ -33,9 +34,34 @@ qr_detector = cv2.QRCodeDetector()
 def get_db_connection():
     return mysql.connector.connect(**db_config)
 
+# Use relative paths
 QR_STORAGE_PATH = os.path.join(os.getcwd(), "public", "qrcodes")
 if not os.path.exists(QR_STORAGE_PATH):
     os.makedirs(QR_STORAGE_PATH)
+
+# --- 3. SILENCE & HEALTH ROUTES ---
+
+@app.route('/')
+def health_check():
+    """Prevents 404 when hitting the base URL"""
+    return jsonify({
+        "status": "online",
+        "service": "Ricon Model API",
+        "device": "Asus Vivobook RTX 3050"
+    }), 200
+
+@app.route('/favicon.ico')
+def favicon():
+    """Silences the automatic browser icon request"""
+    return '', 204
+
+# --- 4. FUNCTIONAL ROUTES ---
+
+# @app.route('/generate-qr', methods=['POST'])
+# def generate_qr():
+#     data = request.json
+#     if not data:
+#         return jsonify({"error": "No JSON data provided"}), 400
 
 @app.route('/generate-qr', methods=['POST'])
 def generate_qr():
@@ -120,5 +146,3 @@ def send_whatsapp():
 if __name__ == '__main__':
     # host='0.0.0.0' allows your S25 Ultra to connect via local IP
     app.run(host='0.0.0.0', port=5000, debug=False)
-
-
