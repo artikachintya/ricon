@@ -250,15 +250,18 @@
                         const data = await response.json();
                         if (data.length > 0) {
                             const res = data[0];
-
-                            if (res.type === "qr_success") {
+                            console.log("AI Response:", {
+                                data
+                            })
+                            if (res.type === "qr_success" && res.type === "face") {
                                 handleSuccess(`QR Verified: Unit #${res.locker_id}`, [res.locker_id],
                                     "QR Code Accepted", res.user_id);
                             } else if (res.type === "qr_error") {
                                 status.innerText = res.result;
                                 status.style.color = "#dc3545";
                             } else if (res.result !== 'STRANGER' && res.user_id) {
-                                status.innerText = `Identity Verified: ${res.result}`;
+                                status.innerText = `Identity Verified: ${
+                                res.result}`;
                                 status.style.color = "#28a745";
                                 fetchActiveLockers(res.user_id, res.result);
                             } else {
@@ -288,7 +291,14 @@
 
                 if (lockers.length > 0) {
                     const lockerIds = lockers.map(l => l.locker_id);
-                    handleSuccess(`Welcome back, ${name}`, lockerIds, `Your active units are ready:`, userId);
+                    if (name && name !== "STRANGER") {
+                        // FACE SUCCESS
+                        handleSuccess(`Welcome back, ${name}`, lockerIds, `Your active units are ready:`, userId);
+                    } else {
+                        // QR SUCCESS
+                        handleSuccess('QR Verified: Unit', lockerIds, "QR Code Accepted", userId);
+                    }
+
                 } else {
                     handleSuccess(`Welcome, ${name}`, [], `You have no active lockers.`);
                 }

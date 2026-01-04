@@ -77,16 +77,19 @@ Route::post('/lockers/update-statuses', function (\Illuminate\Http\Request $requ
 
     // 2. Ambil session aktif dan update pakai each() biar observer jalan
     LockerSession::where('status', 'active')
+        ->whereIn('locker_id', $lockerIds)        // harus locker yang discan
+        ->whereNotNull('assigned_taker_id')        // harus sudah ada assigned taker ⚠️
         ->where(function ($query) use ($userId) {
             $query->where('user_id', $userId)
-                  ->orWhere('assigned_taker_id', $userId);
+                ->orWhere('assigned_taker_id', $userId);
         })
         ->get()
         ->each(function ($session) {
             $session->status = 'done';
             $session->taken_at = now();
-            $session->save(); // observer updated() akan terpanggil
+            $session->save();
         });
+
 
     return response()->json(['message' => 'Statuses updated successfully']);
 });
