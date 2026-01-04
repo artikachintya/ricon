@@ -264,11 +264,9 @@ class LockerBookingController extends Controller
 
             $data = $response->json();
 
-            // Check if AI returned a raw QR key
             if (isset($data[0]['type']) && $data[0]['type'] === 'qr_raw') {
                 $qrKey = $data[0]['key'];
 
-                // Find the item and the user/session associated with it
                 $item = LockerItem::where('key', $qrKey)
                     ->with(['session.user'])
                     ->first();
@@ -276,17 +274,18 @@ class LockerBookingController extends Controller
                     return response()->json([['type' => 'qr_error', 'result' => 'QR Key Tidak Valid']]);
                 }
 
+                if ((int)$item->opened_by_sender !== 1) {
+                    return response()->json([[
+                        'type' => 'qr_used',
+                        'result' => 'Kode QR sudah pernah digunakan'
+                    ]]);
+                }
                 $item->update(['opened_by_sender' => 0]);
-                // Optional: Logic to prevent double-opening if needed
-                // if ($item->opened_by_sender == 0) ...
 
-                // IMPORTANT: Return the data structure the JS expects
                 return response()->json([[
                     'type' => 'qr_success',
                     'user_id' => $item->session->user_id,
                     'name' => $item->session->user->name ?? 'User',
-                    // We send this so the JS knows which specific unit triggered it,
-                    // but we will still fetch ALL active units for this user.
                     'locker_id' => $item->session->locker_id
                 ]]);
             }
